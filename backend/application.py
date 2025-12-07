@@ -7,6 +7,7 @@ app context.
 import os
 import os.path
 from flask import Flask
+from flask_cors import CORS
 import models
 
 
@@ -22,6 +23,11 @@ def create_app():
 	app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 	app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 	models.db.init_app(app)
+	
+	# Enable CORS for frontend communication
+	allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+	CORS(app, resources={r"/api/*": {"origins": allowed_origins}}, supports_credentials=True)
+	
 	return app
 
 
