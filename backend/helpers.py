@@ -14,6 +14,29 @@ def _openai_available():
 	"""
 	return bool(os.getenv("OPENAI_API_KEY"))
 
+def _ask_with_openai(prompt: str, context: str = None) -> str:
+	"""Call OpenAI ChatCompletion to answer a user's prompt, optionally using a context string."""
+	try:
+		import openai
+	except Exception:
+		return None
+	key = os.getenv("OPENAI_API_KEY")
+	if not key:
+		return None
+	openai.api_key = key
+	model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+	# Build messages: system instructions, optional context, then user prompt
+	system = "You are a helpful assistant that answers questions in short, clear, friendly sentences suitable for elderly users. If context is provided, prefer answers informed by it and mention when you are guessing." 
+	messages = [{"role": "system", "content": system}]
+	if context:
+		messages.append({"role": "user", "content": f"Context (do not invent facts):\n{context}"})
+	messages.append({"role": "user", "content": prompt})
+	try:
+		resp = openai.ChatCompletion.create(model=model, messages=messages, max_tokens=300, temperature=0.4)
+		return resp["choices"][0]["message"]["content"].strip()
+	except Exception:
+		return None
+	
 
 def _summarize_with_openai(text: str) -> str:
 	"""If `OPENAI_API_KEY` is set, use OpenAI to create a short, elderly-friendly summary.
@@ -152,3 +175,54 @@ def _fetch_and_extract(url: str) -> tuple:
 		return text, None
 	except Exception as e:
 		return None, f"Extraction failed: {e}"
+	
+def _find_top_match(headlines, keywords):
+		"""Return the first headline that matches any keyword (title or description).
+
+		Matching is case-insensitive. Returns None if no match found.
+		"""
+		if not isinstance(headlines, list):
+			return None
+		kws = [k.lower() for k in keywords]
+		for a in headlines:
+			title = (a.get("title") or "").lower()
+			desc = (a.get("description") or "").lower()
+			for kw in kws:
+				if kw in title or kw in desc:
+					return a
+		return None
+
+def _parse_published_at(item):
+	"""Try to parse `publishedAt` from an article dict to a datetime for sorting."""
+	ts = item.get("publishedAt") if isinstance(item, dict) else None
+	if not ts:
+		return None
+	try:
+		# NewsAPI often returns ISO8601 with trailing Z
+		if ts.endswith("Z"):
+			ts = ts.replace("Z", "+00:00")
+		from datetime import datetime
+		return datetime.fromisoformat(ts)
+	except Exception:
+		return None
+
+
+def _find_top_matches(headlines, keywords, limit=3):
+	"""Return up to `limit` headlines matching keywords, prefer most recent when possible."""
+	if not isinstance(headlines, list):
+		return []
+	kws = [k.lower() for k in keywords]
+	matches = []
+	for a in headlines:
+		title = (a.get("title") or "").lower()
+		desc = (a.get("description") or "").lower()
+		for kw in kws:
+			if kw in title or kw in desc:
+				matches.append(a)
+				break
+	# If articles include publishedAt, sort by it desc
+	try:
+		matches.sort(key=lambda x: _parse_published_at(x) or 0, reverse=True)
+	except Exception:
+		pass
+	return matches[:limit]
