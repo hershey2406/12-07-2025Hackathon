@@ -18,8 +18,8 @@ RUN npm run build
 # Use a lightweight server to serve the static build
 RUN npm install -g serve
 
-# Expose port
+# Expose port (will be overridden by Railway)
 EXPOSE 3000
 
-# Start the server
-CMD ["serve", "-s", "dist", "-l", "3000"]
+# Start the server - use PORT env var if set, default to 3000
+CMD ["sh", "-c", "serve -s dist -l ${PORT:-3000}"]
