@@ -7,7 +7,7 @@ from datetime import datetime
 class Article(db.Model):
     """Canonical stored article row."""
     __tablename__ = "articles"
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Serial, primary_key=True)
     url = db.Column(db.Text, unique=True, nullable=False, index=True)
     title = db.Column(db.Text)
     description = db.Column(db.Text)
@@ -46,8 +46,8 @@ class Article(db.Model):
 class Day(db.Model):
     """Day table representing a date (replaces the old Today JSON row)."""
     __tablename__ = "days"
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.String(10), unique=True, nullable=False)
+    id = db.Column(db.Serial, primary_key=True)
+    date = db.Column(db.Date, unique=True, nullable=False)
     created_at = db.Column(db.Text, default=lambda: datetime.utcnow().isoformat())
     updated_at = db.Column(db.Text, default=lambda: datetime.utcnow().isoformat())
     top_articles = db.relationship("DayArticle", back_populates="day", cascade="all, delete-orphan")
@@ -58,7 +58,7 @@ class Day(db.Model):
 class DayArticle(db.Model):
     """Association between a Day and an Article with category and rank."""
     __tablename__ = "day_articles"
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Serial, primary_key=True)
     day_id = db.Column(db.Integer, db.ForeignKey("days.id"), nullable=False, index=True)
     article_id = db.Column(db.Integer, db.ForeignKey("articles.id"), nullable=False, index=True)
     rank = db.Column(db.Integer, nullable=False, default=0)
