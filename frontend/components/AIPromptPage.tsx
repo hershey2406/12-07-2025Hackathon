@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Send, Volume2, VolumeX, Mic, Sparkles, AlertCircle, X } from 'lucide-react';
 import { Settings } from '../App';
 import { useConversation } from '../context/ConversationContext';
+import { VOICE_CONFIG, VOICE_PREFERENCE } from '../config/voice';
 
 interface AIPromptPageProps {
   settings: Settings;
@@ -139,13 +140,136 @@ export function AIPromptPage({ settings }: AIPromptPageProps) {
     }
   };
 
-  const handleReadMessage = (content: string) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(content);
-      utterance.rate = settings.readAloudSpeed;
-      window.speechSynthesis.speak(utterance);
-      setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
+  const handleReadMessage = async (content: string) => {
+    setIsSpeaking(true);
+    
+    try {
+      // Try voice services in preference order
+      for (const voiceType of VOICE_PREFERENCE) {
+        if (voiceType === 'elevenlabs' && VOICE_CONFIG.elevenlabs.enabled) {
+          try {
+            const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_CONFIG.elevenlabs.voiceId}`, {
+              method: 'POST',
+              headers: {
+                'Accept': 'audio/mpeg',
+                'Content-Type': 'application/json',
+                'xi-api-key': VOICE_CONFIG.elevenlabs.apiKey
+              },
+              body: JSON.stringify({
+                text: content,
+                model_id: "eleven_monolingual_v1",
+                voice_settings: {
+                  stability: 0.5,
+                  similarity_boost: 0.75,
+                  style: 0.5,
+                  use_speaker_boost: true
+                }
+              })
+            });
+            
+            if (response.ok) {
+              const audioBlob = await response.blob();
+              const audioUrl = URL.createObjectURL(audioBlob);
+              const audio = new Audio(audioUrl);
+              
+              audio.playbackRate = settings.readAloudSpeed;
+              await audio.play();
+              
+              audio.onended = () => {
+                setIsSpeaking(false);
+                URL.revokeObjectURL(audioUrl);
+              };
+              
+              audio.onerror = () => {
+                setIsSpeaking(false);
+                URL.revokeObjectURL(audioUrl);
+              };
+              
+              return; // Success - exit function
+            }
+          } catch (error) {
+            console.warn('ElevenLabs failed, trying next option:', error);
+          }
+        }
+        
+        if (voiceType === 'openai' && VOICE_CONFIG.openai.enabled) {
+          try {
+            const response = await fetch('https://api.openai.com/v1/audio/speech', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${VOICE_CONFIG.openai.apiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: VOICE_CONFIG.openai.model,
+                input: content,
+                voice: VOICE_CONFIG.openai.voice,
+                speed: settings.readAloudSpeed
+              })
+            });
+            
+            if (response.ok) {
+              const audioBlob = await response.blob();
+              const audioUrl = URL.createObjectURL(audioBlob);
+              const audio = new Audio(audioUrl);
+              
+              await audio.play();
+              
+              audio.onended = () => {
+                setIsSpeaking(false);
+                URL.revokeObjectURL(audioUrl);
+              };
+              
+              audio.onerror = () => {
+                setIsSpeaking(false);
+                URL.revokeObjectURL(audioUrl);
+              };
+              
+              return; // Success - exit function
+            }
+          } catch (error) {
+            console.warn('OpenAI TTS failed, trying next option:', error);
+          }
+        }
+        
+        if (voiceType === 'browser') {
+          // Fallback: Browser speech synthesis
+          if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(content);
+            const voices = window.speechSynthesis.getVoices();
+            
+            // Try to find the best available browser voice
+            const selectedVoice = voices.find(voice => 
+              voice.name.includes('Google') || 
+              voice.name.includes('Microsoft') ||
+              voice.name.includes('Natural') ||
+              voice.name.includes('Enhanced')
+            ) || voices.find(voice => voice.lang.startsWith('en')) || voices[0];
+            
+            if (selectedVoice) {
+              utterance.voice = selectedVoice;
+            }
+            
+            utterance.rate = settings.readAloudSpeed;
+            utterance.pitch = 1.0;
+            utterance.volume = 0.9;
+            
+            window.speechSynthesis.speak(utterance);
+            utterance.onend = () => setIsSpeaking(false);
+            utterance.onerror = () => setIsSpeaking(false);
+            
+            return; // Success - exit function
+          }
+        }
+      }
+      
+      // If all methods fail
+      console.error('All text-to-speech methods failed');
+      setIsSpeaking(false);
+      
+    } catch (error) {
+      console.error('Error with text-to-speech:', error);
+      setIsSpeaking(false);
     }
   };
 
