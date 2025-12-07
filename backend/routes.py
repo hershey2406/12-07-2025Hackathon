@@ -3,6 +3,7 @@ import os
 import tempfile
 from dotenv import load_dotenv
 from .helpers import _openai_available, _summarize_with_openai, _naive_summarize, _ocr_image, _fetch_and_extract, _ask_with_openai, _find_top_match, _parse_published_at, _find_top_matches
+from .db_ops import get_day_articles
 import json
 from datetime import date
 # Prefer SQLAlchemy models when available so we can use db.session instead of raw sqlite3.
@@ -141,30 +142,22 @@ def _read_today_row(db_path: str, target_date: str):
 	  - Fall back to legacy `Today` table that stores a JSON string in `headlines`.
 	Returns (headlines_list_or_text, None) on success or (None, error_message).
 	"""
-	# ORM-only path: require SQLAlchemy models initialized and bound to the app.
-	if models_db is None:
-		return None, "ORM not initialized; set up SQLAlchemy and initialize models.db with your Flask app"
+	# Use centralized db_ops helper to get day articles, then map to the
+	# legacy shape expected by the routes.
 	try:
-		session = models_db.session
-		q = (
-			session.query(Article.url, Article.title, Article.description, Article.content, Article.source_name, Article.published_at)
-			.join(DayArticle, DayArticle.article_id == Article.id)
-			.join(Day, Day.id == DayArticle.day_id)
-			.filter(Day.date == target_date)
-			.order_by(DayArticle.rank.asc())
-		)
-		rows = q.all()
-		if not rows:
+		items = get_day_articles(day=target_date)
+		if not items:
 			return None, None
 		headlines = []
-		for (url, title, description, content, source_name, published_at) in rows:
+		for entry in items:
+			art = entry.get("article") or {}
 			headlines.append({
-				"url": url,
-				"title": title,
-				"description": description,
-				"content": content,
-				"source": {"name": source_name} if source_name else None,
-				"publishedAt": published_at,
+				"url": art.get("url"),
+				"title": art.get("title"),
+				"description": art.get("description"),
+				"content": art.get("content"),
+				"source": {"name": art.get("source_name")} if art.get("source_name") else None,
+				"publishedAt": art.get("published_at"),
 			})
 		return headlines, None
 	except Exception as e:
@@ -199,7 +192,7 @@ def list_available_dates():
 	try:
 		session = models_db.session
 		rows = session.query(Day.date).order_by(Day.date.desc()).all()
-		dates = [r[0] for r in rows]
+		dates = [r[0].isoformat() if hasattr(r[0], "isoformat") else str(r[0]) for r in rows]
 		return jsonify({"dates": dates})
 	except Exception as e:
 		return jsonify({"error": str(e)}), 500
@@ -476,17 +469,18 @@ def article_summary():
 				return jsonify({"error": "ORM not initialized; configure SQLAlchemy and call models.db.init_app(app)"}), 500
 			try:
 				session = models_db.session
-				row = (
-					session.query(Day.date, Article.url, Article.title, Article.description, Article.content, Article.source_name, Article.published_at)
-					.join(DayArticle, Day.id == DayArticle.day_id)
-					.join(Article, Article.id == DayArticle.article_id)
-					.filter(Article.url == url)
-					.first()
-				)
-				if row:
-					d, u, title, description, content, source_name, published_at = row
-					article = {"url": u, "title": title, "description": description, "content": content, "source": {"name": source_name} if source_name else None, "publishedAt": published_at}
-					search_date = d
+				# Find Article by URL
+				art_row = session.query(Article).filter_by(url=url).first()
+				if art_row:
+					# try to find any Day mapping for this article
+					da = session.query(DayArticle).filter_by(article_id=art_row.id).order_by(DayArticle.rank.asc()).first()
+					day_date = None
+					if da:
+						d_obj = session.query(Day).filter_by(id=da.day_id).first()
+						if d_obj and getattr(d_obj, "date", None):
+							day_date = d_obj.date.isoformat() if hasattr(d_obj.date, "isoformat") else str(d_obj.date)
+					article = {"url": art_row.url, "title": art_row.title, "description": art_row.description, "content": art_row.content, "source": {"name": art_row.source_name} if art_row.source_name else None, "publishedAt": art_row.published_at}
+					search_date = day_date or None
 			except Exception as e:
 				return jsonify({"error": f"DB error: {e}"}), 500
 

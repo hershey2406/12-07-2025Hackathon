@@ -10,3 +10,5 @@ readability-lxml
 flask_sqlalchemy
 alembic
 psycopg2-binary
+SQAlchemy
+newsapi-python
