@@ -1,0 +1,2 @@
+release: python -m alembic upgrade head
+web: gunicorn application:app

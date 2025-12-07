@@ -1,0 +1,14 @@
+Flask
+python-dotenv
+openai
+gunicorn
+Pillow
+pytesseract
+requests
+beautifulsoup4
+readability-lxml
+Flask-SQLAlchemy
+alembic
+psycopg2-binary
+SQLAlchemy
+newsapi-python
