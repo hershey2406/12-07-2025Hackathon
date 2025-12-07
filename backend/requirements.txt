@@ -8,3 +8,5 @@ requests
 beautifulsoup4
 readability-lxml
 flask_sqlalchemy
+alembic
+psycopg2-binary

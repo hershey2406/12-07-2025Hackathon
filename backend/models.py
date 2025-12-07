@@ -8,7 +8,16 @@ class Today(db.Model):
 
     def to_dict(self):
         return {"id": self.id, "date": self.date}
-    
+    #articles
+    #article type
+    # economy
+    # defense
+    # health
+    # technology
+    # sports
+    # entertainment
+    # world
+    # politics    
 class Test(db.Model):
     __tablename__ = 'Test'
     id = db.Column(db.Integer, primary_key=True)
