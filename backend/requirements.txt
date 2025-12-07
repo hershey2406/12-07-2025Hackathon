@@ -7,4 +7,4 @@ pytesseract
 requests
 beautifulsoup4
 readability-lxml
-
+flask_sqlalchemy
