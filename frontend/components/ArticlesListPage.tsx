@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Settings, Article } from '../App';
 import { Newspaper, TrendingUp, Heart, Shield, ChevronRight, Loader2 } from 'lucide-react';
-import { fetchArticleSummary } from '../apis/api';
+import { fetchArticleSummary } from '../api/api';
 
 interface ArticlesListPageProps {
   settings: Settings;
@@ -189,7 +189,7 @@ export function ArticlesListPage({ settings, navigateTo }: ArticlesListPageProps
             setLoadingSummaries(prev => ({ ...prev, [article.id]: true }));
             
             try {
-              const summary = await fetchArticleSummary(article.id, article.title, article.content);
+              const summary = await fetchArticleSummary(article.title, article.content);
               
               setArticlesWithSummaries(prev => ({
                 ...prev,
