@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Settings, Article } from '../App';
 import { Newspaper, TrendingUp, Heart, Shield, ChevronRight, Loader2 } from 'lucide-react';
-import { fetchArticleSummary } from '../api/api';
+import { fetchArticleSummary } from '../apis/api';
 
 interface ArticlesListPageProps {
   settings: Settings;

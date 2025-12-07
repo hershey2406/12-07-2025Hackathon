@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
+import { askQuestion } from '../apis/api';
 
 export interface Message {
   id: number;
@@ -117,32 +118,14 @@ export function ConversationProvider({ children }: { children: ReactNode }) {
 
   const getAIResponse = async (userMessage: string): Promise<string> => {
     try {
-      // TODO: Replace with your actual AI backend API endpoint
-      const response = await fetch('YOUR_AI_API_ENDPOINT/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // Add your authentication headers here
-          // 'Authorization': 'Bearer YOUR_API_KEY'
-        },
-        body: JSON.stringify({
-          sessionId: conversation.sessionId,
-          message: userMessage,
-          conversationHistory: conversation.messages.slice(0, -1) // Send all messages except the one we just added
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get AI response');
-      }
-
-      const data = await response.json();
-      return data.response || data.message || 'I apologize, but I couldn\'t generate a response.';
+      // Use the real backend API
+      const response = await askQuestion(userMessage);
+      return response.answer || 'I apologize, but I couldn\'t generate a response.';
     } catch (error) {
       console.error('Error getting AI response:', error);
       
-      // Mock AI response for demonstration
-      return `I understand you're asking about "${userMessage}". This is a helpful response explaining the topic in simple, easy-to-understand terms. I can break down complex subjects into clear explanations. (Note: This is a mock response. Connect to your AI backend to get real responses.)`;
+      // Fallback response if the backend is unavailable
+      return `I understand you're asking about "${userMessage}". I'm currently unable to connect to the AI service, but I'd be happy to help you understand this topic once the connection is restored. Please try again in a moment.`;
     }
   };
 

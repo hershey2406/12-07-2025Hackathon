@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import os
 import tempfile
 from dotenv import load_dotenv
@@ -17,6 +18,7 @@ DB_PATH = os.getenv("DB_PATH") or os.path.join(os.path.dirname(__file__), "today
 
 load_dotenv()
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 
 @app.route("/health", methods=["GET"])

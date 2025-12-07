@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Volume2, Send, Sparkles, VolumeX, Mic } from 'lucide-react';
 import { Screen, Article, Settings } from '../App';
-import { fetchArticleSummary } from '../api/api';
+import { fetchArticleSummary } from '../apis/api';
 
 interface ArticlePageProps {
   article: Article;
